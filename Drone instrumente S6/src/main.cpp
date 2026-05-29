@@ -74,8 +74,7 @@ void loop() {
   SerialBT.print(h);
   SerialBT.print(F("T"));
   SerialBT.print(t);
-  SerialBT.print(F("I\n"));
-  SerialBT.print(hic);
+  SerialBT.print("\n");
 
   // Compute heat index in Celsius (isFahreheit = false)
   hic = dht.computeHeatIndex(t, h, false);
