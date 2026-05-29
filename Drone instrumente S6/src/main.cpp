@@ -5,95 +5,112 @@
 #include <Wire.h>
 #include "Adafruit_SGP30.h"
 #include <Adafruit_BMP280.h>
+#include <BluetoothSerial.h>
 
-// #define DHTPIN 33       // Digital pin connected to the DHT sensor
-// #define DHTTYPE DHT12   // DHT 12
+#define DHTPIN 33       // Digital pin connected to the DHT sensor
+#define DHTTYPE DHT12   // DHT 12
 
 uint32_t getAbsoluteHumidity(float temperature, float humidity);
 
-// DHT dht(DHTPIN, DHTTYPE); // Init DHT sensor
-// Adafruit_SGP30 sgp;
-Adafruit_BMP280 bmp; // I2C
+DHT dht(DHTPIN, DHTTYPE); // Init DHT sensor
+Adafruit_SGP30 sgp;
+// Adafruit_BMP280 bmp; // I2C
+BluetoothSerial SerialBT;
 
 float h, t; // Variables to hold humidity and temperature values
 float hic;  // Variable to hold heat index value
 int counter = 0;
+const char* pin = "1234"; // Bluetooth pairing pin
 
 void setup() {
   Serial.begin(115200); // Init serial
   Serial.println("Init");
-  /*
+  
+  // _____ Init Temperature/Humidity sensor _____ //
   dht.begin(); // Start DHT sensor
 
+  // _____ Init Air Quality sensor _____ //
   if (! sgp.begin()){
     Serial.println("Sensor not found :(");
-    while (1);
+    while (1) delay(10);
   }
   Serial.print("Found SGP30 serial #");
   Serial.print(sgp.serialnumber[0], HEX);
   Serial.print(sgp.serialnumber[1], HEX);
   Serial.println(sgp.serialnumber[2], HEX);
-  */
-  if (!bmp.begin()) {
-    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
-                      "try a different address!"));
-    while (1) delay(10);
-  }
+
+  // // _____ Init Pressure sensor _____ //
+  // if (!bmp.begin()) {
+  //   Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
+  //                     "try a different address!"));
+  //   while (1) delay(10);
+  // }
+
+  // _____ Init Bluetooth _____ //
+  SerialBT.setPin(pin);                   // Set Bluetooth pairing pin
+  SerialBT.begin("ESP32_METEO_STATION");  // Bluetooth device name
 }
 
 void loop() {
   delay(2000); // Wait a few seconds between measurements. 
-  // h = dht.readHumidity();
-  // t = dht.readTemperature();
+  h = dht.readHumidity();
+  t = dht.readTemperature();
 
-  // if(isnan(h) || isnan(t)) {
-  //   Serial.println("Failed to read from DHT sensor!");
-  //   return;
-  // }
+  if(isnan(h) || isnan(t)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
 
-  // Serial.print(F("Humidity: "));
-  // Serial.print(h);
-  // Serial.print(F("%  Temperature: "));
-  // Serial.print(t);
-  // Serial.print(F("°C  Heat index: "));
-  // Serial.print(hic);
-  // Serial.print(F("°C "));
-  // Serial.println();
+  Serial.print(F("Humidity: "));
+  Serial.print(h);
+  Serial.print(F("%  Temperature: "));
+  Serial.print(t);
+  Serial.print(F("°C  Heat index: "));
+  Serial.print(hic);
+  Serial.print(F("°C "));
+  Serial.println();
 
-  // // Compute heat index in Celsius (isFahreheit = false)
-  // hic = dht.computeHeatIndex(t, h, false);
+  SerialBT.print(F("H"));
+  SerialBT.print(h);
+  SerialBT.print(F("T"));
+  SerialBT.print(t);
+  SerialBT.print(F("I\n"));
+  SerialBT.print(hic);
 
-  // // If you have a temperature / humidity sensor, you can set the absolute humidity to enable the humditiy compensation for the air quality signals
-  // sgp.setHumidity(getAbsoluteHumidity(t, h));
+  // Compute heat index in Celsius (isFahreheit = false)
+  hic = dht.computeHeatIndex(t, h, false);
 
-  // if (! sgp.IAQmeasure()) {
-  //   Serial.println("Measurement failed");
-  //   return;
-  // }
-  // Serial.print("TVOC "); Serial.print(sgp.TVOC); Serial.print(" ppb\t");
-  // Serial.print("eCO2 "); Serial.print(sgp.eCO2); Serial.println(" ppm");
+  // If you have a temperature / humidity sensor, you can set the absolute humidity to enable the humditiy compensation for the air quality signals
+  sgp.setHumidity(getAbsoluteHumidity(t, h));
 
-  // if (! sgp.IAQmeasureRaw()) {
-  //   Serial.println("Raw Measurement failed");
-  //   return;
-  // }
-  // Serial.print("Raw H2 "); Serial.print(sgp.rawH2); Serial.print(" \t");
-  // Serial.print("Raw Ethanol "); Serial.print(sgp.rawEthanol); Serial.println("");
+  if (! sgp.IAQmeasure()) {
+    Serial.println("Measurement failed");
+    return;
+  }
+  Serial.print("TVOC "); Serial.print(sgp.TVOC); Serial.print(" ppb\t");
+  Serial.print("eCO2 "); Serial.print(sgp.eCO2); Serial.println(" ppm");
 
-  // delay(1000);
+  if (! sgp.IAQmeasureRaw()) {
+    Serial.println("Raw Measurement failed");
+    return;
+  }
+  Serial.print("Raw H2 "); Serial.print(sgp.rawH2); Serial.print(" \t");
+  Serial.print("Raw Ethanol "); Serial.print(sgp.rawEthanol); Serial.println("");
 
-  // counter++;
-  // if (counter == 30) {
-  //   counter = 0;
+  delay(1000);
 
-  //   uint16_t TVOC_base, eCO2_base;
-  //   if (! sgp.getIAQBaseline(&eCO2_base, &TVOC_base)) {
-  //     Serial.println("Failed to get baseline readings");
-  //     return;
-  //   }
-  //   Serial.print("****Baseline values: eCO2: 0x"); Serial.print(eCO2_base, HEX);
-  //   Serial.print(" & TVOC: 0x"); Serial.println(TVOC_base, HEX);
-  // }
+  counter++;
+  if (counter == 30) {
+    counter = 0;
+
+    uint16_t TVOC_base, eCO2_base;
+    if (! sgp.getIAQBaseline(&eCO2_base, &TVOC_base)) {
+      Serial.println("Failed to get baseline readings");
+      return;
+    }
+    Serial.print("****Baseline values: eCO2: 0x"); Serial.print(eCO2_base, HEX);
+    Serial.print(" & TVOC: 0x"); Serial.println(TVOC_base, HEX);
+  }
 }
 
 
