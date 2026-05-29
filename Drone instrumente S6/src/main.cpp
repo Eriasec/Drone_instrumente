@@ -150,8 +150,6 @@ void loop() {
       Serial.print("Raw Ethanol "); Serial.print(sgp.rawEthanol); Serial.println("");
     #endif
 
-    delay(1000);
-
     counter++;
     if (counter == 30) {
       counter = 0;
@@ -172,11 +170,11 @@ void loop() {
     #ifdef ENABLE_BLUETOOTH
       SerialBT.print(F(" TVOC"));
       SerialBT.print(sgp.TVOC);
-      SerialBT.print(F(" eCO2"));
+      SerialBT.print(F(" CO2"));
       SerialBT.print(sgp.eCO2);
       SerialBT.print(F(" RAWH2"));
       SerialBT.print(sgp.rawH2);
-      SerialBT.print(F(" RAWEthanol"));
+      SerialBT.print(F(" RAWET"));
       SerialBT.print(sgp.rawEthanol);
       SerialBT.print(F("\n"));
       #endif
