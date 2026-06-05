@@ -176,8 +176,32 @@ void loop() {
       SerialBT.print(sgp.rawH2);
       SerialBT.print(F(" RAWET"));
       SerialBT.print(sgp.rawEthanol);
-      SerialBT.print(F("\n"));
+      #ifndef ENABLE_DHT12
+        #ifndef ENABLE_BMP280
+          SerialBT.print(F("\n"));
+        #endif
       #endif
+      #endif
+  #endif
+
+  #ifdef ENABLE_BMP280     // BMP280 readings
+    #ifdef ENABLE_DEBUG
+
+      Serial.print(F("Pressure = "));
+      Serial.print(bmp.readPressure());
+      Serial.println(" Pa");
+
+      Serial.print(F("Approx. Altitude = "));
+      Serial.print(bmp.readAltitude(1013.25)); // Adjusted to your local forecasted sea level pressure
+      Serial.println(" m");
+    #endif
+
+    #ifdef ENABLE_BLUETOOTH
+      SerialBT.print(F(" PRES"));
+      SerialBT.print(bmp.readPressure());
+      SerialBT.print(F(" ALT"));
+      SerialBT.print(bmp.readAltitude(1013.25));
+    #endif
   #endif
 }
 
