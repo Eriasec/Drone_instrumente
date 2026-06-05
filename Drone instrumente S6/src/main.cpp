@@ -5,7 +5,7 @@
 #define ENABLE_DEBUG
 #define ENABLE_DHT12
 #define ENABLE_SGP30
-//#define ENABLE_BMP280
+// #define ENABLE_BMP280
 #define ENABLE_BLUETOOTH
 
 #ifdef ENABLE_DHT12
@@ -202,6 +202,10 @@ void loop() {
       SerialBT.print(F(" ALT"));
       SerialBT.print(bmp.readAltitude(1013.25));
     #endif
+  #endif
+
+  #ifdef ENABLE_BLUETOOTH
+    SerialBT.print(F("\n"));
   #endif
 }
 
