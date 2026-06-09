@@ -38,6 +38,7 @@ uint32_t getAbsoluteHumidity(float temperature, float humidity);
 
 float h, t; // Variables to hold humidity and temperature values
 float hic;  // Variable to hold heat index value
+double initialPressure; // Variable to hold initial pressure value for altitude calculation
 int counter = 0;
 const char* pin = "1234"; // Bluetooth pairing pin
 
@@ -79,6 +80,7 @@ void setup() {
       #endif
       while (1) delay(10);
     }
+    initialPressure = bmp.readPressure()/100; // Read initial pressure for altitude calculation (hPa)
   #endif
 
   #ifdef ENABLE_BLUETOOTH // Init Bluetooth
@@ -186,7 +188,7 @@ void loop() {
       Serial.println(" Pa");
 
       Serial.print(F("Approx. Altitude = "));
-      Serial.print(bmp.readAltitude(1013.25)); // Adjusted to your local forecasted sea level pressure
+      Serial.print(bmp.readAltitude(initialPressure)); // Adjusted to your local forecasted sea level pressure
       Serial.println(" m");
     #endif
 
@@ -194,7 +196,7 @@ void loop() {
       SerialBT.print(F(" PRES"));
       SerialBT.print(bmp.readPressure()/100);
       SerialBT.print(F(" ALT"));
-      SerialBT.print(bmp.readAltitude(1013.25));
+      SerialBT.print(bmp.readAltitude(initialPressure));
     #endif
   #endif
 
