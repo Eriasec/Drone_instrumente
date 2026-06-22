@@ -1,13 +1,15 @@
 #include <Arduino.h>
 #include <Adafruit_Sensor.h>
 
-// Parametres
+// _____ Parametres _____
 #define ENABLE_DEBUG
 #define ENABLE_DHT12
 #define ENABLE_SGP30
 #define ENABLE_BMP280
-#define ENABLE_BLUETOOTH
+// #define ENABLE_BLUETOOTH
+#define ENABLE_WIFI
 
+// _____ Declarations _____
 #ifdef ENABLE_DHT12
   #include <Wire.h>
   #include <DHT.h>
@@ -27,11 +29,25 @@
   #include <Wire.h>
   #include <Adafruit_BMP280.h>
   Adafruit_BMP280 bmp; // I2C
+
+  float alt;
+  float press;
 #endif
 
 #ifdef ENABLE_BLUETOOTH
   #include "BluetoothSerial.h"
+
   BluetoothSerial SerialBT;
+#endif
+
+#ifdef ENABLE_WIFI
+  #include "WiFi.h"
+  #include "AsyncUDP.h"
+
+  const char *ssid = "Bebop2-070980";
+  const char *password = "";
+
+  AsyncUDP udp;
 #endif
 
 uint32_t getAbsoluteHumidity(float temperature, float humidity);
@@ -40,6 +56,8 @@ float h, t; // Variables to hold humidity and temperature values
 float hic;  // Variable to hold heat index value
 double initialPressure; // Variable to hold initial pressure value for altitude calculation
 int counter = 0;
+char message[200];
+int offset = 0;
 const char* pin = "1234"; // Bluetooth pairing pin
 
 void setup() {
@@ -86,6 +104,41 @@ void setup() {
   #ifdef ENABLE_BLUETOOTH // Init Bluetooth
     SerialBT.begin("ESP32_METEO_STATION");  // Bluetooth device name
   #endif
+
+  #ifdef ENABLE_WIFI // Init UDP Client
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+    if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+      Serial.println("WiFi Failed");
+      while (1) {
+        delay(1000);
+      }
+    }
+    if (udp.connect(IPAddress(192, 168, 42, 100), 1234)) {
+      Serial.println("UDP connected");
+      udp.onPacket([](AsyncUDPPacket packet) {
+        Serial.print("UDP Packet Type: ");
+        Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
+        Serial.print(", From: ");
+        Serial.print(packet.remoteIP());
+        Serial.print(":");
+        Serial.print(packet.remotePort());
+        Serial.print(", To: ");
+        Serial.print(packet.localIP());
+        Serial.print(":");
+        Serial.print(packet.localPort());
+        Serial.print(", Length: ");
+        Serial.print(packet.length());
+        Serial.print(", Data: ");
+        Serial.write(packet.data(), packet.length());
+        Serial.println();
+        //reply to the client
+        packet.printf("Got %lu bytes of data", (unsigned long)packet.length());
+      });
+    //Send unicast
+    udp.print("Hello Server!");
+  }
+  #endif
 }
 
 void loop() {
@@ -115,14 +168,7 @@ void loop() {
       Serial.println();
     #endif
 
-    #ifdef ENABLE_BLUETOOTH
-      SerialBT.print(F("HUM"));
-      SerialBT.print(h);
-      SerialBT.print(F(" TEMP"));
-      SerialBT.print(t);
-      SerialBT.print(F(" INDEX"));
-      SerialBT.print(hic);
-    #endif
+    offset += sprintf(message + offset, "HUM:%f;TEMP:%f;INDEX:%f;", h, t, hic);
     
     #ifdef ENABLE_SGP30 // Set absolute humidity for SGP30 compensation
       sgp.setHumidity(getAbsoluteHumidity(t, h));
@@ -169,39 +215,35 @@ void loop() {
       #endif
     }
 
-    #ifdef ENABLE_BLUETOOTH
-      SerialBT.print(F(" TVOC"));
-      SerialBT.print(sgp.TVOC);
-      SerialBT.print(F(" CO2"));
-      SerialBT.print(sgp.eCO2);
-      SerialBT.print(F(" RAWH2"));
-      SerialBT.print(sgp.rawH2);
-      SerialBT.print(F(" RAWET"));
-      SerialBT.print(sgp.rawEthanol);
-    #endif
+    offset += sprintf(message + offset, "TVOC:%u;CO2:%u;RAWH2:%u;RAWET:%u;", sgp.TVOC, sgp.eCO2, sgp.rawH2, sgp.rawEthanol);
   #endif
 
   #ifdef ENABLE_BMP280     // BMP280 readings
+    press  = bmp.readPressure() / 100;
+    alt = bmp.readAltitude(initialPressure);
     #ifdef ENABLE_DEBUG
       Serial.print(F("Pressure = "));
-      Serial.print(bmp.readPressure());
+      Serial.print(press);
       Serial.println(" Pa");
 
       Serial.print(F("Approx. Altitude = "));
-      Serial.print(bmp.readAltitude(initialPressure)); // Adjusted to your local forecasted sea level pressure
+      Serial.print(alt); // Adjusted to your local forecasted sea level pressure
       Serial.println(" m");
     #endif
 
-    #ifdef ENABLE_BLUETOOTH
-      SerialBT.print(F(" PRES"));
-      SerialBT.print(bmp.readPressure()/100);
-      SerialBT.print(F(" ALT"));
-      SerialBT.print(bmp.readAltitude(initialPressure));
-    #endif
+    offset += sprintf(message + offset, "PRES:%f;ALT:%f;", press, alt);
   #endif
 
   #ifdef ENABLE_BLUETOOTH   // End of frame
-    SerialBT.print(F("\n"));
+    SerialBT.print(message);
+  #endif
+  
+  offset += sprintf(message + offset, "\n");
+  Serial.println(message);
+  offset = 0;
+
+  #ifdef ENABLE_WIFI
+    udp.broadcastTo(message, 5001);
   #endif
 }
 
