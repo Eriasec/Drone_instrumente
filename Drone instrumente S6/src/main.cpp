@@ -116,25 +116,6 @@ void setup() {
     }
     if (udp.connect(IPAddress(192, 168, 42, 100), 1234)) {
       Serial.println("UDP connected");
-      udp.onPacket([](AsyncUDPPacket packet) {
-        Serial.print("UDP Packet Type: ");
-        Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
-        Serial.print(", From: ");
-        Serial.print(packet.remoteIP());
-        Serial.print(":");
-        Serial.print(packet.remotePort());
-        Serial.print(", To: ");
-        Serial.print(packet.localIP());
-        Serial.print(":");
-        Serial.print(packet.localPort());
-        Serial.print(", Length: ");
-        Serial.print(packet.length());
-        Serial.print(", Data: ");
-        Serial.write(packet.data(), packet.length());
-        Serial.println();
-        //reply to the client
-        packet.printf("Got %lu bytes of data", (unsigned long)packet.length());
-      });
     //Send unicast
     udp.print("Hello Server!");
   }
@@ -142,7 +123,7 @@ void setup() {
 }
 
 void loop() {
-  delay(2000); // Wait a few seconds between measurements. 
+  delay(500); // Wait a few seconds between measurements. 
   #ifdef ENABLE_DHT12     // DHT12 readings
     h = dht.readHumidity();
     t = dht.readTemperature();
@@ -243,7 +224,7 @@ void loop() {
   offset = 0;
 
   #ifdef ENABLE_WIFI
-    udp.broadcastTo(message, 5001);
+    udp.broadcastTo(message, 52814);
   #endif
 }
 
